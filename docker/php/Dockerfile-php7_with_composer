@@ -1,0 +1,25 @@
+FROM evild/alpine-php:latest
+# install git bash openssh
+ENV IMAGICK_VERSION 3.4.1
+
+RUN apk update && apk upgrade && \
+    apk add --no-cache bash git openssh pkgconfig libxml2-dev libxslt-dev musl libcrypto1.0 libssl1.0 openssl-dev imagemagick-dev libtool autoconf gcc g++ make
+
+# php extensions
+RUN docker-php-ext-install zip
+RUN docker-php-ext-install pdo_mysql
+RUN docker-php-ext-install xsl
+RUN docker-php-ext-install bcmath
+RUN (yes | pecl install imagick-$IMAGICK_VERSION) \
+    &&  echo "extension=imagick.so" > /usr/local/etc/php/conf.d/ext-imagick.ini \
+    && apk del libtool autoconf gcc g++ make
+#RUN pecl install mongodb  && echo "extension=mongodb.so" > /usr/local/etc/php/conf.d/ext-mongo.ini
+#RUN no '' | pecl install -f apcu && echo "extension=apcu.so" > /usr/local/etc/php/conf.d/ext-apcu.ini
+
+
+#install composer
+RUN cd /bin && php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+RUN cd /bin && php -r "if (hash_file('SHA384', 'composer-setup.php') === '669656bab3166a7aff8a7506b8cb2d1c292f042046c5a994c43155c0be6190fa0355160742ab2e1c88d40d5be660b410') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
+RUN cd /bin && php composer-setup.php --install-dir=/bin --filename=composer
+RUN cd /bin && php -r "unlink('composer-setup.php');"
+RUN composer global require "fxp/composer-asset-plugin:^1.2.0"

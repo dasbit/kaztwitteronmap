@@ -1,0 +1,73 @@
+version: '2.1'
+services:
+
+  db:
+    container_name: ktom_db
+    image: mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=ktomstrongpassword
+      - MYSQL_DATABASE=ktom
+    volumes:
+      - ./mysql/dump:/docker-entrypoint-initdb.d
+    ports:
+       - 3306:3306
+    tty: true
+    restart: always
+
+  phpmyadmin:
+    container_name: ktom_phpmyadmin
+    image: phpmyadmin/phpmyadmin
+    depends_on:
+      - db
+    links:
+      - db
+    # environment:
+    #   - MYSQL_ROOT_PASSWORD=ktomstrongpassword
+    ports:
+      - 8080:80
+
+  app:
+    container_name: ktom_app
+    build:
+      context: ./php
+      dockerfile: Dockerfile-php7_with_composer
+    working_dir: /code
+    # environment:
+    #   - ENV=dev # or prod
+    # entrypoint: /code/docker/php/entrypoint.sh
+    volumes:
+      - ../:/code
+      - ./php/php-fpm.d:/usr/local/etc/php-fpm.d
+    depends_on: 
+      - db
+    links:
+      - db
+
+  server:
+    image: evild/alpine-nginx:1.9.15-openssl
+    container_name: ktom_nginx
+    restart: always
+    depends_on:
+      - app
+    links:
+      - app
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/server.conf
+      - ./nginx/logs:/usr/local/var/log/nginx
+    volumes_from:
+      - app:ro
+    ports:
+      - 80:80
+
+  node:
+    container_name: ktom_node
+    image: node:slim
+    depends_on:
+      - app
+    volumes_from:
+      - app
+    working_dir: /code
+#    ports:
+#      - 6001:6001
+#    command: 'npm install && npm run dev'
+    tty: true
